@@ -1,0 +1,13 @@
+---
+- name: Reload systemd-networkd
+  ansible.builtin.systemd:
+    name: systemd-networkd
+    state: reloaded
+- name: Restart Caddy
+  ansible.builtin.systemd_service:
+    name: caddy.service
+    state: restarted
+- name: Reload Caddy
+  ansible.builtin.systemd_service:
+    name: caddy.service
+    state: reloaded

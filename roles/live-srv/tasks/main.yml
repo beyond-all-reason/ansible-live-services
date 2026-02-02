@@ -1,0 +1,14 @@
+---
+- name: Set up base system
+  ansible.builtin.import_tasks: system.yml
+  tags: system
+- name: Set up firewall
+  ansible.builtin.import_tasks: firewall.yml
+  tags: firewall
+- name: Set up containers
+  ansible.builtin.import_tasks: containers.yml
+  tags: containers
+- name: Configure monitoring
+  ansible.builtin.import_tasks: monitoring.yml
+  tags: monitoring
+  when: configure_monitoring

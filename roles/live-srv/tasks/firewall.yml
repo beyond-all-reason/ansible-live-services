@@ -1,0 +1,26 @@
+---
+- name: Allow and rate limit SSH
+  community.general.ufw:
+    rule: limit
+    name: OpenSSH
+- name: Allow HTTPS for Caddy container
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_out: podmanpriv
+    proto: "{{ item.proto }}"
+    to_port: "{{ item.port }}"
+  loop:
+    - proto: tcp
+      port: 80
+    - proto: tcp
+      port: 443
+    - proto: udp
+      port: 443
+- name: Default deny for incoming traffic
+  community.general.ufw:
+    default: deny
+    direction: incoming
+- name: Enable firewall
+  community.general.ufw:
+    state: enabled

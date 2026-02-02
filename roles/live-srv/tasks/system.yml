@@ -1,0 +1,65 @@
+---
+- name: Set timezone to UTC
+  community.general.timezone:
+    name: Etc/UTC
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "bar-live-srv-{{ inventory_hostname }}"
+- name: Install packages
+  ansible.builtin.package:
+    name:
+      - acl # for ansible become
+      - bind9-dnsutils
+      - curl
+      - htop
+      - less
+      - man
+      - nano
+      - podman
+      - tmux
+      - ufw
+      - unattended-upgrades
+      - vim
+    state: present
+- name: Make sure podman network works well with ufw
+  ansible.builtin.copy:
+    dest: /etc/containers/containers.conf
+    content: |
+      [network]
+      # We set iptables driver so it plays well with ufw that also uses iptables
+      firewall_driver = "iptables"
+    mode: "0644"
+- name: Configure uid/gid mapping ranges
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    regexp: "^containers:"
+    line: containers:10000000:10000000
+  loop:
+    - /etc/subgid
+    - /etc/subuid
+- name: Create Quadlet file for podman network
+  containers.podman.podman_network:
+    name: priv
+    state: quadlet
+    subnet: "10.89.1.0/24"
+    gateway: "10.89.1.1"
+    quadlet_options:
+      - Options=com.docker.network.bridge.name=podmanpriv
+- name: Create /etc/systemd/network
+  ansible.builtin.file:
+    path: /etc/systemd/network
+    state: directory
+    mode: "0755"
+- name: Configure DNS resolution of podman containers from host
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/90-podmanpriv.network
+    content: |
+      [Match]
+      Name=podmanpriv
+
+      [Network]
+      DNS=10.89.1.1
+      Domains=~dns.podman
+      KeepConfiguration=yes
+    mode: "0644"
+  notify: Reload systemd-networkd
