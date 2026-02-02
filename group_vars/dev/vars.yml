@@ -1,3 +1,33 @@
 ---
-domain_name_ok: "ok.bar-live-srv.local"
+# BAR Live Services - Development/Testing Variables
+
+# Domain for local testing
+domain_name: "live-srv.bar-mon.local"
+
+# PostgreSQL password for development (use vault for production)
+postgres_password: "devpassword123"
+
+# SFTP password for development
+sftp_upload_password: "devsftp123"
+
+# Disable features that require credentials in dev
+bar_db_process_balance_changes: false
+bar_db_github_token: ""
+bar_db_lobby_username: ""
+bar_db_lobby_password: ""
+bar_db_google_sheets_id: ""
+bar_db_google_sheets_api_key: ""
+
+# Enable verbose logging in dev
+bar_db_verbose: true
+bar_db_log_sql: false
+
+# Force rebuild of images when testing changes
+bar_db_rebuild: false
+bar_live_services_rebuild: false
+
+# Disable backups in dev
+backup_enabled: false
+
+# Disable monitoring in dev
 configure_monitoring: false

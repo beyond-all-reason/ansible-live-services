@@ -1,13 +1,51 @@
 ---
+# Handlers for BAR Live Services
+
 - name: Reload systemd-networkd
   ansible.builtin.systemd:
     name: systemd-networkd
     state: reloaded
+
+# Database services
+- name: Restart PostgreSQL
+  ansible.builtin.systemd_service:
+    name: postgres.service
+    state: restarted
+
+- name: Restart Redis
+  ansible.builtin.systemd_service:
+    name: redis.service
+    state: restarted
+
+# Application services
+- name: Restart bar-db
+  ansible.builtin.systemd_service:
+    name: bar-db.service
+    state: restarted
+
+- name: Restart bar-db-processor
+  ansible.builtin.systemd_service:
+    name: bar-db-processor.service
+    state: restarted
+
+- name: Restart bar-live-services
+  ansible.builtin.systemd_service:
+    name: bar-live-services.service
+    state: restarted
+
+# Reverse proxy
 - name: Restart Caddy
   ansible.builtin.systemd_service:
     name: caddy.service
     state: restarted
+
 - name: Reload Caddy
   ansible.builtin.systemd_service:
     name: caddy.service
     state: reloaded
+
+# SSH/SFTP
+- name: Restart SSH
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: restarted

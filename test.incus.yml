@@ -5,6 +5,7 @@ config:
   security.privileged: true
   cloud-init.user-data: |
     #cloud-config
+    package_update: true
     package_upgrade: true
     packages:
       - openssh-server

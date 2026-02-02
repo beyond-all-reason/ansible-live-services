@@ -1,0 +1,38 @@
+---
+# BAR Live Services - Production Variables
+
+# Production domain
+domain_name: "bar-rts.com"
+# Optional: API subdomain for direct backend access
+# domain_name_api: "api.bar-rts.com"
+
+# Secrets from vault
+postgres_password: "{{ vault_postgres_password }}"
+sftp_upload_password: "{{ vault_sftp_upload_password }}"
+bar_db_github_token: "{{ vault_bar_db_github_token }}"
+bar_db_lobby_username: "{{ vault_bar_db_lobby_username }}"
+bar_db_lobby_password: "{{ vault_bar_db_lobby_password }}"
+bar_db_google_sheets_id: "{{ vault_bar_db_google_sheets_id }}"
+bar_db_google_sheets_api_key: "{{ vault_bar_db_google_sheets_api_key }}"
+
+# Production settings
+bar_db_process_balance_changes: true
+bar_db_verbose: false
+bar_db_log_sql: false
+
+# Don't rebuild images automatically in prod
+bar_db_rebuild: false
+bar_live_services_rebuild: false
+
+# Enable backups in production
+backup_enabled: true
+backup_storage_type: "{{ vault_backup_storage_type }}"
+backup_remote_path: "{{ vault_backup_remote_path }}"
+# Storage-specific credentials from vault
+backup_s3_access_key: "{{ vault_backup_s3_access_key | default(omit) }}"
+backup_s3_secret_key: "{{ vault_backup_s3_secret_key | default(omit) }}"
+backup_s3_endpoint: "{{ vault_backup_s3_endpoint | default(omit) }}"
+backup_s3_region: "{{ vault_backup_s3_region | default(omit) }}"
+
+# Enable monitoring in production
+configure_monitoring: true

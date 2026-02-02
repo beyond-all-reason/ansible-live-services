@@ -1,0 +1,45 @@
+# Dockerfile for bar-db (BAR Live Services Backend)
+# Builds both the processor and rest-api services
+FROM node:14-alpine AS builder
+
+WORKDIR /app
+
+# Install git for npm dependencies that use git
+RUN apk add --no-cache git
+
+# Clone the repository
+ARG BAR_DB_VERSION=master
+RUN git clone --depth 1 --branch ${BAR_DB_VERSION} \
+    https://github.com/beyond-all-reason/bar-db.git .
+
+# Install dependencies and build
+RUN npm ci --legacy-peer-deps && npm run build
+
+# Production image
+FROM node:14-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache tini
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+
+# Create directories for maps and demos
+RUN mkdir -p /data/maps /data/demos
+
+# Default environment
+ENV NODE_ENV=production
+
+# Expose API port
+EXPOSE 3001
+
+# Use tini as init system
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Default command runs the rest-api
+# Override with "npm run processor" for the processor service
+CMD ["node", "-r", "source-map-support/register", "./dist/rest-api-cli.js", "--config", "/config/config.json"]

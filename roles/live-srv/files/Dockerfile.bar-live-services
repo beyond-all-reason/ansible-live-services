@@ -1,0 +1,56 @@
+# Dockerfile for bar-live-services (BAR Live Services Frontend)
+# Nuxt.js application
+FROM node:14-alpine AS builder
+
+WORKDIR /app
+
+# Install git for npm dependencies that use git
+RUN apk add --no-cache git
+
+# Clone the repository
+ARG BAR_LIVE_SERVICES_VERSION=main
+RUN git clone --depth 1 --branch ${BAR_LIVE_SERVICES_VERSION} \
+    https://github.com/beyond-all-reason/bar-live-services.git .
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps
+
+# Build argument for API URL (used during build for SSR)
+ARG BASE_URL=http://bar-db:3001
+ENV BASE_URL=${BASE_URL}
+
+# Build the Nuxt application
+RUN npm run build
+
+# Production image
+FROM node:14-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache tini
+
+# Copy built application and dependencies
+COPY --from=builder /app/.nuxt ./.nuxt
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/nuxt.config.ts ./
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/serverMiddleware ./serverMiddleware
+
+# Default environment
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
+# Runtime BASE_URL can override build-time value
+ENV BASE_URL=http://bar-db:3001
+
+# Expose frontend port
+EXPOSE 3000
+
+# Use tini as init system
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the Nuxt server
+CMD ["npm", "run", "start"]

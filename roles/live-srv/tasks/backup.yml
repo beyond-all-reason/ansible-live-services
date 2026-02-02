@@ -1,0 +1,46 @@
+---
+# PostgreSQL Backup Configuration
+# Uses pg_dump + zstd compression + rclone for remote storage
+
+- name: Install backup dependencies
+  ansible.builtin.package:
+    name:
+      - zstd
+      - rclone
+      - postgresql-client
+    state: present
+  when: backup_enabled | default(false)
+
+- name: Create backup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - /var/tmp/backup
+    - /usr/local/etc/backup
+    - /usr/local/bin
+  when: backup_enabled | default(false)
+
+- name: Write rclone configuration
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /usr/local/etc/backup/rclone.conf
+    mode: "0600"
+  when: backup_enabled | default(false)
+
+- name: Write backup script
+  ansible.builtin.template:
+    src: backup-take.sh.j2
+    dest: /usr/local/bin/backup-take.sh
+    mode: "0755"
+  when: backup_enabled | default(false)
+
+- name: Set up backup cron job
+  ansible.builtin.cron:
+    name: "PostgreSQL backup"
+    minute: "{{ backup_cron_minute | default('0') }}"
+    hour: "{{ backup_cron_hour | default('3') }}"
+    job: "/usr/local/bin/backup-take.sh >> /var/log/backup.log 2>&1"
+    user: root
+    state: "{{ 'present' if backup_enabled | default(false) else 'absent' }}"

@@ -1,0 +1,31 @@
+# Example vault file for BAR Live Services production secrets
+# Copy this to vault.yml and encrypt with: ansible-vault encrypt group_vars/prod/vault.yml
+---
+# Database
+vault_postgres_password: "your-secure-postgres-password"
+
+# SFTP upload user (for SPADS replay uploads)
+vault_sftp_upload_password: "your-secure-sftp-password"
+
+# bar-db credentials
+vault_bar_db_github_token: "your-github-personal-access-token"
+vault_bar_db_lobby_username: "bardb-bot-username"
+vault_bar_db_lobby_password: "bardb-bot-password"
+vault_bar_db_google_sheets_id: "your-google-sheets-id"
+vault_bar_db_google_sheets_api_key: "your-google-sheets-api-key"
+
+# Backup storage configuration
+# Options: s3, b2, sftp, local
+vault_backup_storage_type: "s3"
+vault_backup_remote_path: "backup:bar-live-services"
+
+# For S3-compatible storage (AWS, MinIO, Backblaze S3, etc.)
+vault_backup_s3_access_key: "your-access-key"
+vault_backup_s3_secret_key: "your-secret-key"
+vault_backup_s3_endpoint: "s3.us-west-001.backblazeb2.com"  # Optional, for non-AWS
+vault_backup_s3_region: "us-west-001"  # Optional
+
+# For Backblaze B2 native API (alternative to S3)
+# vault_backup_storage_type: "b2"
+# vault_backup_b2_account: "your-account-id"
+# vault_backup_b2_key: "your-application-key"

@@ -1,5 +1,8 @@
 ---
-- name: Attach client montoring
+# Monitoring configuration for BAR Live Services
+# Exports metrics to central monitoring server
+
+- name: Attach client monitoring
   ansible.builtin.import_role:
     name: beyondallreason.monitoring.client
   vars:
@@ -12,3 +15,12 @@
           relabel_configs:
             - target_label: instance
               replacement: "live-srv-{{ inventory_hostname }}"
+      # Future: Add bar-db metrics endpoint if implemented
+      # 02_bar_db:
+      #   - job_name: bar-db
+      #     static_configs:
+      #       - targets:
+      #           - bar-db.dns.podman:9090
+      #     relabel_configs:
+      #       - target_label: instance
+      #         replacement: "live-srv-{{ inventory_hostname }}"

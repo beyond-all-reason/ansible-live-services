@@ -1,0 +1,82 @@
+---
+# SFTP Setup for Replay Uploads from SPADS
+# Creates a restricted SFTP user that can only upload to the demos directory
+
+- name: Install OpenSSH server
+  ansible.builtin.package:
+    name: openssh-server
+    state: present
+  when: sftp_enabled | default(true)
+
+- name: Create SFTP group
+  ansible.builtin.group:
+    name: sftpusers
+    state: present
+  when: sftp_enabled | default(true)
+
+- name: Create SFTP upload user
+  ansible.builtin.user:
+    name: "{{ sftp_upload_user }}"
+    group: sftpusers
+    shell: /usr/sbin/nologin
+    home: "/home/{{ sftp_upload_user }}"
+    create_home: true
+    state: present
+  when: sftp_enabled | default(true)
+
+- name: Set SFTP user password
+  ansible.builtin.user:
+    name: "{{ sftp_upload_user }}"
+    password: "{{ sftp_upload_password | password_hash('sha512') }}"
+  when: sftp_enabled | default(true)
+
+- name: Create chroot directory structure
+  ansible.builtin.file:
+    path: "/home/{{ sftp_upload_user }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: sftp_enabled | default(true)
+
+- name: Create upload directory inside chroot
+  ansible.builtin.file:
+    path: "/home/{{ sftp_upload_user }}/demos"
+    state: directory
+    owner: "{{ sftp_upload_user }}"
+    group: sftpusers
+    mode: "0755"
+  when: sftp_enabled | default(true)
+
+- name: Bind mount demos/unprocessed to SFTP upload directory
+  ansible.posix.mount:
+    path: "/home/{{ sftp_upload_user }}/demos"
+    src: "/opt/bar-db/demos/unprocessed"
+    fstype: none
+    opts: bind
+    state: mounted
+  when: sftp_enabled | default(true)
+
+- name: Configure SSH for SFTP-only access
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} ANSIBLE MANAGED - SFTP UPLOAD USER"
+    block: |
+      # SFTP configuration for replay uploads
+      Port {{ sftp_port }}
+      
+      Match User {{ sftp_upload_user }}
+          ChrootDirectory /home/%u
+          ForceCommand internal-sftp -d /demos
+          AllowTcpForwarding no
+          X11Forwarding no
+          PasswordAuthentication yes
+  notify: Restart SSH
+  when: sftp_enabled | default(true)
+
+- name: Ensure SSH is running
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: true
+    state: started
+  when: sftp_enabled | default(true)

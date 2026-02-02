@@ -5,9 +5,15 @@
 - name: Set up firewall
   ansible.builtin.import_tasks: firewall.yml
   tags: firewall
+- name: Set up SFTP for replay uploads
+  ansible.builtin.import_tasks: sftp.yml
+  tags: sftp
 - name: Set up containers
   ansible.builtin.import_tasks: containers.yml
   tags: containers
+- name: Set up backup
+  ansible.builtin.import_tasks: backup.yml
+  tags: backup
 - name: Configure monitoring
   ansible.builtin.import_tasks: monitoring.yml
   tags: monitoring

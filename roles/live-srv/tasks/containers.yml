@@ -1,5 +1,214 @@
 ---
-# Caddy
+# PostgreSQL Database
+- name: Create postgres data directory
+  ansible.builtin.file:
+    path: /opt/postgres/data
+    state: directory
+    mode: "0755"
+- name: Create PostgreSQL password secret
+  containers.podman.podman_secret:
+    state: present
+    name: postgres_password
+    data: "{{ postgres_password }}"
+- name: Set up PostgreSQL container
+  containers.podman.podman_container:
+    name: postgres
+    state: quadlet
+    image: docker.io/library/postgres:16-alpine
+    env:
+      POSTGRES_USER: bardb
+      POSTGRES_DB: bardb
+    secrets:
+      - postgres_password,type=env,target=POSTGRES_PASSWORD
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data:idmap"
+    network: priv.network
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - "Pull=newer"
+      - "UserNS=auto"
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Restart PostgreSQL
+- name: Start and enable PostgreSQL service
+  ansible.builtin.systemd_service:
+    name: postgres.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Redis
+- name: Set up Redis container
+  containers.podman.podman_container:
+    name: redis
+    state: quadlet
+    image: docker.io/library/redis:7-alpine
+    volumes:
+      - "redis_data:/data:idmap"
+    network: priv.network
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - "Pull=newer"
+      - "UserNS=auto"
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Restart Redis
+- name: Start and enable Redis service
+  ansible.builtin.systemd_service:
+    name: redis.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# bar-db Configuration
+- name: Create bar-db config directory
+  ansible.builtin.file:
+    path: /opt/bar-db/config
+    state: directory
+    mode: "0755"
+- name: Create bar-db data directories
+  ansible.builtin.file:
+    path: "/opt/bar-db/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - maps
+    - demos
+    - demos/unprocessed
+    - demos/processed
+    - demos/errored
+- name: Write bar-db config
+  ansible.builtin.template:
+    src: bar-db.config.json.j2
+    dest: /opt/bar-db/config/config.json
+    mode: "0644"
+  notify:
+    - Restart bar-db
+    - Restart bar-db-processor
+
+# Build bar-db image
+- name: Copy bar-db Dockerfile
+  ansible.builtin.copy:
+    src: Dockerfile.bar-db
+    dest: /opt/bar-db/Dockerfile
+    mode: "0644"
+- name: Build bar-db container image
+  containers.podman.podman_image:
+    name: localhost/bar-db
+    path: /opt/bar-db
+    build:
+      file: Dockerfile
+      extra_args: "--build-arg BAR_DB_VERSION={{ bar_db_version }}"
+    force: "{{ bar_db_rebuild | default(false) }}"
+  notify:
+    - Restart bar-db
+    - Restart bar-db-processor
+
+# bar-db REST API Service
+- name: Set up bar-db container
+  containers.podman.podman_container:
+    name: bar-db
+    state: quadlet
+    image: localhost/bar-db:latest
+    volumes:
+      - "/opt/bar-db/config:/config:ro"
+      - "/opt/bar-db/maps:/data/maps:idmap"
+      - "/opt/bar-db/demos:/data/demos:idmap"
+    network: priv.network
+    quadlet_options:
+      - "UserNS=auto"
+      - |
+        [Unit]
+        After=postgres.service redis.service
+        Requires=postgres.service redis.service
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Restart bar-db
+- name: Start and enable bar-db service
+  ansible.builtin.systemd_service:
+    name: bar-db.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# bar-db Processor Service (background processing)
+- name: Set up bar-db-processor container
+  containers.podman.podman_container:
+    name: bar-db-processor
+    state: quadlet
+    image: localhost/bar-db:latest
+    command: ["node", "-r", "source-map-support/register", "./dist/bar-db-cli.js", "--config", "/config/config.json"]
+    volumes:
+      - "/opt/bar-db/config:/config:ro"
+      - "/opt/bar-db/maps:/data/maps:idmap"
+      - "/opt/bar-db/demos:/data/demos:idmap"
+    network: priv.network
+    quadlet_options:
+      - "UserNS=auto"
+      - |
+        [Unit]
+        After=postgres.service redis.service
+        Requires=postgres.service redis.service
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Restart bar-db-processor
+- name: Start and enable bar-db-processor service
+  ansible.builtin.systemd_service:
+    name: bar-db-processor.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# bar-live-services (Frontend)
+- name: Create bar-live-services directory
+  ansible.builtin.file:
+    path: /opt/bar-live-services
+    state: directory
+    mode: "0755"
+- name: Copy bar-live-services Dockerfile
+  ansible.builtin.copy:
+    src: Dockerfile.bar-live-services
+    dest: /opt/bar-live-services/Dockerfile
+    mode: "0644"
+- name: Build bar-live-services container image
+  containers.podman.podman_image:
+    name: localhost/bar-live-services
+    path: /opt/bar-live-services
+    build:
+      file: Dockerfile
+      extra_args: "--build-arg BAR_LIVE_SERVICES_VERSION={{ bar_live_services_version }} --build-arg BASE_URL=http://bar-db.dns.podman:3001"
+    force: "{{ bar_live_services_rebuild | default(false) }}"
+  notify: Restart bar-live-services
+- name: Set up bar-live-services container
+  containers.podman.podman_container:
+    name: bar-live-services
+    state: quadlet
+    image: localhost/bar-live-services:latest
+    env:
+      BASE_URL: "http://bar-db.dns.podman:3001"
+    network: priv.network
+    quadlet_options:
+      - "UserNS=auto"
+      - |
+        [Unit]
+        After=bar-db.service
+        Requires=bar-db.service
+      - |
+        [Install]
+        WantedBy=default.target
+  notify: Restart bar-live-services
+- name: Start and enable bar-live-services service
+  ansible.builtin.systemd_service:
+    name: bar-live-services.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Caddy Reverse Proxy
 - name: Create caddy config directory
   ansible.builtin.file:
     path: /opt/caddy/config
@@ -29,6 +238,9 @@
       - "AutoUpdate=registry"
       - "Pull=newer"
       - "UserNS=auto"
+      - |
+        [Unit]
+        After=bar-live-services.service bar-db.service
       - |
         [Install]
         WantedBy=default.target
