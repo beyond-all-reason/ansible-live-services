@@ -1,0 +1,39 @@
+FROM node:14-bullseye AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG BAR_DB_VERSION=master
+RUN git clone --depth 1 --branch ${BAR_DB_VERSION} \
+    https://github.com/beyond-all-reason/bar-db.git .
+
+RUN npm ci && npm run build
+
+# Bind to all interfaces (needed for container networking)
+RUN sed -i 's/this.fastify.listen(this.config.apiPort)/this.fastify.listen(this.config.apiPort, "0.0.0.0")/' dist/rest-api.js
+
+FROM node:14-bullseye-slim
+
+WORKDIR /app
+
+# p7zip-full is required for extracting .sd7 map files
+RUN apt-get update && apt-get install -y --no-install-recommends tini p7zip-full \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+
+RUN npm ci --production
+
+RUN mkdir -p /data/maps /data/demos
+
+ENV NODE_ENV=production
+EXPOSE 3001
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Override with "node -r source-map-support/register ./dist/bar-db-cli.js --config /config/config.json" for the processor
+CMD ["node", "-r", "source-map-support/register", "./dist/rest-api-cli.js", "--config", "/config/config.json"]

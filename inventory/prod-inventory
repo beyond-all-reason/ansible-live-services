@@ -1,0 +1,5 @@
+# Production inventory for BAR Live Services
+main ansible_host=51.195.223.10
+
+[prod]
+main

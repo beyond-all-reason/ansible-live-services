@@ -1,0 +1,66 @@
+---
+# SFTP Setup for Replay Uploads from SPADS
+# Creates a restricted SFTP user that can only upload to the demos directory
+
+- name: Install OpenSSH server
+  ansible.builtin.package:
+    name: openssh-server
+    state: present
+
+- name: Create SFTP group
+  ansible.builtin.group:
+    name: sftpusers
+    state: present
+
+- name: Create SFTP upload user
+  ansible.builtin.user:
+    name: "{{ sftp_upload_user }}"
+    group: sftpusers
+    shell: /usr/sbin/nologin
+    home: "/home/{{ sftp_upload_user }}"
+    create_home: true
+    # ansible.builtin.user requires a pre-hashed password for /etc/shadow;
+    # the plaintext password from vault is hashed at deploy time
+    password: "{{ sftp_upload_password | password_hash('sha512') }}"
+    state: present
+
+# ChrootDirectory requires the chroot path to be owned by root and not writable
+# by other users. The user's home dir serves as the chroot, with a writable
+# /demos subdirectory inside. ForceCommand internal-sftp -d /demos drops the
+# user directly into /demos on login.
+- name: Create chroot directory structure
+  ansible.builtin.file:
+    path: "/home/{{ sftp_upload_user }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create upload directory inside chroot
+  ansible.builtin.file:
+    path: "/home/{{ sftp_upload_user }}/demos"
+    state: directory
+    owner: "{{ sftp_upload_user }}"
+    group: sftpusers
+    mode: "0755"
+
+- name: Bind mount demos/unprocessed to SFTP upload directory
+  ansible.posix.mount:
+    path: "/home/{{ sftp_upload_user }}/demos"
+    src: "/opt/bar-db/demos/unprocessed"
+    fstype: none
+    opts: bind
+    state: mounted
+
+- name: Configure SSH for SFTP-only access
+  ansible.builtin.template:
+    src: sftp-upload.conf.j2
+    dest: /etc/ssh/sshd_config.d/50-sftp-upload.conf
+    mode: "0644"
+  notify: Restart SSH
+
+- name: Ensure SSH is running
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: true
+    state: started

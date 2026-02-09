@@ -1,0 +1,6 @@
+[Unit]
+Description=PostgreSQL backup for BAR Live Services
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-take.sh

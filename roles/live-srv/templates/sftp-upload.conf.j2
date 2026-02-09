@@ -1,0 +1,9 @@
+# Managed by Ansible - SFTP upload user configuration
+# Restricts {{ sftp_upload_user }} to SFTP-only access with chroot
+
+Match User {{ sftp_upload_user }}
+    ChrootDirectory /home/%u
+    ForceCommand internal-sftp -d /demos
+    AllowTcpForwarding no
+    X11Forwarding no
+    PasswordAuthentication yes

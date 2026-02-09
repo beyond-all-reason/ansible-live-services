@@ -1,0 +1,43 @@
+FROM node:14-bullseye AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG BAR_LIVE_SERVICES_VERSION=main
+RUN git clone --depth 1 --branch ${BAR_LIVE_SERVICES_VERSION} \
+    https://github.com/beyond-all-reason/bar-live-services.git .
+
+RUN npm ci
+
+ARG BASE_URL=http://bar-db:3001
+ENV BASE_URL=${BASE_URL}
+
+RUN npm run build
+
+FROM node:14-bullseye-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/.nuxt ./.nuxt
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/nuxt.config.ts ./
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/serverMiddleware ./serverMiddleware
+
+RUN npm ci --production
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+ENV BASE_URL=http://bar-db:3001
+
+EXPOSE 3000
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["npm", "run", "start"]

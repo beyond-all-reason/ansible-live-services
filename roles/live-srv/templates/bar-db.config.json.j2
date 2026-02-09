@@ -1,0 +1,57 @@
+{
+  "processBalanceChanges": {{ bar_db_process_balance_changes | default(true) | lower }},
+  "balanceChanges": {
+    "owner": "beyond-all-reason",
+    "repo": "Beyond-All-Reason",
+    "auth": "{{ bar_db_github_token | default('') }}",
+    "pollIntervalMs": {{ bar_db_balance_poll_interval | default(1800000) }}
+  },
+  "db": {
+    "host": "postgres.dns.podman",
+    "port": 5432,
+    "username": "bardb",
+    "password": "{{ postgres_password }}",
+    "createSchemaDiagram": false,
+    "logSQL": {{ bar_db_log_sql | default(false) | lower }},
+    "alterDbSchema": {{ bar_db_alter_schema | default(false) | lower }},
+    "syncModel": true,
+    "initMemoryStore": true
+  },
+  "redis": {
+    "host": "redis.dns.podman",
+    "port": 6379
+  },
+  "lobby": {
+    "host": "{{ bar_db_lobby_host | default('server4.beyondallreason.info') }}",
+    "port": {{ bar_db_lobby_port | default(8200) }},
+    "username": "{{ bar_db_lobby_username | default('') }}",
+    "password": "{{ bar_db_lobby_password | default('') }}",
+    "lobbySignature": "BARDB",
+    "verbose": {{ bar_db_lobby_verbose | default(false) | lower }},
+    "stayConnected": {{ bar_db_lobby_stay_connected | default(true) | lower }}
+  },
+  "maplists": {
+    "googleSheetsId": "{{ bar_db_google_sheets_id | default('') }}",
+    "googleSheetsAPIKey": "{{ bar_db_google_sheets_api_key | default('') }}"
+  },
+  "pollMapsFromMapsMetadata": {{ bar_db_poll_maps_metadata | default(true) | lower }},
+  "mapsMetadataPoller": {
+    "url": "{{ bar_db_maps_metadata_url | default('https://maps-metadata.beyondallreason.dev/latest/live_maps.validated.json') }}",
+    "pollIntervalMs": {{ bar_db_maps_metadata_poll_interval | default(300000) }}
+  },
+  "mapsDir": "/data/maps",
+  "demosDir": "/data/demos",
+  "storeDemos": "{{ bar_db_store_demos | default('internal') }}",
+  "storeMaps": "{{ bar_db_store_maps | default('internal') }}",
+{% if bar_db_object_storage_auth_url is defined %}
+  "objectStorage": {
+    "authUrl": "{{ bar_db_object_storage_auth_url }}",
+    "containerUrl": "{{ bar_db_object_storage_container_url }}",
+    "username": "{{ bar_db_object_storage_username }}",
+    "password": "{{ bar_db_object_storage_password }}"
+  },
+{% endif %}
+  "apiHost": "0.0.0.0",
+  "apiPort": 3001,
+  "verbose": {{ bar_db_verbose | default(true) | lower }}
+}
