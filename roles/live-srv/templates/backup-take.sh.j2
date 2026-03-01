@@ -1,0 +1,43 @@
+#!/bin/bash
+# PostgreSQL Backup Script for BAR Live Services
+# Dumps database with zstd compression and uploads to remote storage via rclone
+
+set -e -u -o pipefail
+
+if [[ $(id -u) != 0 ]]; then
+    echo "This script must be run as root" >&2
+    exit 1
+fi
+
+BACKUP_DIR="/var/tmp/backup"
+BACKUP_FILE="bardb-$(date +%Y%m%d%H%M%S).dump.zst"
+RCLONE_CONFIG="/usr/local/etc/backup/rclone.conf"
+REMOTE_PATH="{{ backup_path }}"
+
+echo "[$(date)] Starting backup..."
+
+# Ensure backup directory exists
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+
+# Dump database from inside the postgres container, pipe through zstd on host
+echo "[$(date)] Dumping database..."
+podman exec postgres pg_dump -U bardb -d bardb -Fc -Z0 \
+    | ionice -c3 nice -n19 zstd --long -9 --stdout > "$BACKUP_DIR/$BACKUP_FILE"
+
+BACKUP_SIZE=$(du -h "$BACKUP_DIR/$BACKUP_FILE" | cut -f1)
+echo "[$(date)] Backup created: $BACKUP_FILE ($BACKUP_SIZE)"
+
+# Upload to remote storage
+echo "[$(date)] Uploading to remote storage..."
+ionice -c3 nice -n19 rclone --config "$RCLONE_CONFIG" copyto \
+    "$BACKUP_DIR/$BACKUP_FILE" \
+    "$REMOTE_PATH/$BACKUP_FILE"
+
+echo "[$(date)] Upload complete"
+
+# Cleanup local backup files (keep only last 2)
+echo "[$(date)] Cleaning up old local backups..."
+ls -t "$BACKUP_DIR"/*.dump.zst 2>/dev/null | tail -n +3 | xargs -r rm -f
+
+echo "[$(date)] Backup completed successfully"

@@ -1,14 +1,46 @@
+# Caddyfile for BAR Live Services (bar-rts.com)
 {
-	default_sni {{ domain_name_ok }}
+	default_sni {{ domain_name }}
 	metrics {
 		per_host
 	}
 }
 
+# Metrics endpoint for monitoring
 :2020 {
 	metrics
 }
 
-{{ domain_name_ok }} {
-	respond "ok"
+# Main site
+{{ domain_name }} {
+	# API routes - proxy to bar-db backend
+	handle /api/* {
+		reverse_proxy bar-db.dns.podman:3001
+	}
+
+	# All other routes - proxy to frontend
+	handle {
+		reverse_proxy bar-live-services.dns.podman:3000
+	}
+
+	# Health check endpoint
+	handle /health {
+		respond "OK" 200
+	}
+
+	# Logging
+	log {
+		output stdout
+		format console
+	}
+}
+
+# API subdomain for direct backend access (used by frontend for browser-side fetches)
+{{ domain_name_api }} {
+	reverse_proxy bar-db.dns.podman:3001
+
+	log {
+		output stdout
+		format console
+	}
 }

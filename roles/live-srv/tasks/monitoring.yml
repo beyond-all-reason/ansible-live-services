@@ -1,5 +1,8 @@
 ---
-- name: Attach client montoring
+# Monitoring configuration for BAR Live Services
+# Exports metrics to central monitoring server
+
+- name: Attach client monitoring
   ansible.builtin.import_role:
     name: beyondallreason.monitoring.client
   vars:

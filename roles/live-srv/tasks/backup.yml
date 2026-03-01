@@ -1,0 +1,49 @@
+---
+# PostgreSQL Backup Configuration
+# Uses pg_dump (from inside container) + zstd compression + rclone for remote storage
+
+- name: Install backup dependencies
+  ansible.builtin.package:
+    name:
+      - zstd
+      - rclone
+    state: present
+
+- name: Create backup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - /var/tmp/backup
+    - /usr/local/etc/backup
+    - /usr/local/bin
+
+- name: Write rclone configuration
+  ansible.builtin.copy:
+    content: "{{ backup_rclone_config }}"
+    dest: /usr/local/etc/backup/rclone.conf
+    mode: "0600"
+  no_log: true
+
+- name: Write backup script
+  ansible.builtin.template:
+    src: backup-take.sh.j2
+    dest: /usr/local/bin/backup-take.sh
+    mode: "0755"
+
+- name: Install backup systemd units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - bar-backup.service
+    - bar-backup.timer
+
+- name: Enable backup timer
+  ansible.builtin.systemd_service:
+    name: bar-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true

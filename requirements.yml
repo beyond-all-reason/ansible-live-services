@@ -1,4 +1,11 @@
 collections:
+  - name: containers.podman
+    version: "1.19.0"
+  - name: community.general
+    version: "12.3.0"
+  - name: ansible.posix
+    version: "2.1.0"
+  # BAR monitoring client role for metrics export
   - name: https://github.com/beyond-all-reason/ansible-monitoring.git
     type: git
-    version: 17e55d358b4b5e7f81bec9ff2fd73289f7e39750
+    version: 8465dd09541c2aae2567568c34b61ecc945834c2

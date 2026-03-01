@@ -1,0 +1,44 @@
+---
+# BAR Live Services - Common Variables
+
+# Container image versions
+bar_db_version: "master"
+bar_live_services_version: "main"
+
+# bar-db configuration defaults
+bar_db_process_balance_changes: true
+bar_db_log_sql: false
+bar_db_alter_schema: false
+bar_db_verbose: true
+bar_db_poll_maps_metadata: true
+bar_db_maps_metadata_url: "https://maps-metadata.beyondallreason.dev/latest/live_maps.validated.json"
+bar_db_maps_metadata_poll_interval: 300000
+bar_db_balance_poll_interval: 1800000
+bar_db_store_demos: "internal"
+bar_db_store_maps: "internal"
+
+# Teiserver/Lobby connection defaults
+bar_db_lobby_host: "server4.beyondallreason.info"
+bar_db_lobby_port: 8200
+bar_db_lobby_verbose: false
+bar_db_lobby_stay_connected: true
+
+# SFTP configuration for replay uploads
+sftp_enabled: true
+sftp_upload_user: "replay-upload"
+
+# Backup configuration
+backup_enabled: false
+backup_rclone_config: |
+  [backup]
+  type = local
+backup_path: "backup:/var/backups/bar-live-services"
+
+# API subdomain (auto-derived from domain_name, override per-environment if needed)
+domain_name_api: "api.{{ domain_name }}"
+
+# Public URL for bar-db API (used by frontend for browser-side fetches)
+bar_db_base_url: "https://{{ domain_name_api }}"
+
+# Monitoring
+configure_monitoring: false
